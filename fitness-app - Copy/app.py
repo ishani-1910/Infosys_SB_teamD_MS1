@@ -6,8 +6,6 @@ from dotenv import load_dotenv
 # ----------------------------
 # LOAD ENVIRONMENT VARIABLES
 # ----------------------------
-# force override=True to ensure we pick up the latest API Key from the file
-# even if an empty one was loaded previously.
 load_dotenv(override=True)
 
 # IMPORT LOGIC MODULES
@@ -15,8 +13,10 @@ from engine.scheduler import create_weekly_schedule
 from engine.nutrition import calculate_nutritional_needs
 from engine.diet_generator import generate_diet_plan
 
+# NEW: IMPORT MENTAL HEALTH MODULE
+from mental_health import render_mental_health_page
+
 # IMPORT DATABASE FUNCTIONS
-# Added 'delete_plan'
 from database import init_db, add_user, verify_user, save_plan, get_user_plans, delete_plan
 
 # ----------------------------
@@ -68,7 +68,6 @@ header {visibility: hidden;}
 footer {visibility: hidden;}
 
 /* --- EXPANDER TITLE STYLING (FIX) --- */
-/* Forces the summary text to stay black even on hover/focus */
 div[data-testid="stExpander"] details summary p {
     font-family: 'Oswald', sans-serif !important;
     font-size: 18px !important;
@@ -78,7 +77,7 @@ div[data-testid="stExpander"] details summary p {
 
 div[data-testid="stExpander"] details summary:hover p,
 div[data-testid="stExpander"] details summary:focus p {
-    color: #000000 !important; /* Kept black on hover */
+    color: #000000 !important;
 }
 
 div[data-testid="stExpander"] {
@@ -133,7 +132,7 @@ div.stButton > button[kind="primary"]:hover, div[data-testid="stFormSubmitButton
 }
 
 /* --- INPUT FIELDS --- */
-label, .stNumberInput label, .stSelectbox label, .stSlider label, .stMultiSelect label, .stTextInput label, .stRadio label {
+label, .stNumberInput label, .stSelectbox label, .stSlider label, .stMultiSelect label, .stTextInput label, .stRadio label, .stTextArea label {
     font-family: 'Oswald', sans-serif !important;
     text-transform: uppercase;
     font-size: 14px;
@@ -148,7 +147,8 @@ div[role="radiogroup"] p, div[role="radiogroup"] div {
 
 .stNumberInput input, 
 .stSelectbox div[data-baseweb="select"], 
-div[data-baseweb="input"] > input {
+div[data-baseweb="input"] > input,
+.stTextArea textarea {
     color: #FFFFFF !important; /* White Text */
     background-color: #262730 !important; /* Dark Background */
     border-radius: 4px !important;
@@ -249,7 +249,6 @@ ul[data-baseweb="menu"] li {
     color: #000000 !important;
 }
 
-/* Ensure text inside plan cards is always dark */
 .plan-card p, .plan-card li, .plan-card div, .plan-card span, .plan-card strong {
     color: #333333 !important;
 }
@@ -411,20 +410,20 @@ elif st.session_state.page == "planner":
     st.markdown("<h2 class='section-title' style='text-align: center;'>Choose Your Path</h2>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; color: #555; margin-bottom: 40px;'>Select the type of plan you want to generate today.</p>", unsafe_allow_html=True)
 
-    c1, c_gap, c2 = st.columns([1, 0.1, 1])
+    c1, c2, c3 = st.columns(3)
 
     # --- WORKOUT PLAN CARD ---
     with c1:
         st.markdown("""
         <div class="selection-card">
             <div class="card-icon">🏋️</div>
-            <div class="card-title">Create New<br>Workout Plan</div>
+            <div class="card-title">Workout<br>Plan</div>
             <div class="card-desc">
-                Generate a personalized weekly exercise routine based on your fitness goals, experience level, and available equipment.
+                Generate a personalized weekly exercise routine based on your fitness goals.
             </div>
         </div>
         """, unsafe_allow_html=True)
-        if st.button("CREATE WORKOUT PLAN", key="btn_workout_plan", type="primary", use_container_width=True):
+        if st.button("CREATE WORKOUT", key="btn_workout_plan", type="primary", use_container_width=True):
             st.session_state.page = "scheduler"
             st.rerun()
 
@@ -433,14 +432,29 @@ elif st.session_state.page == "planner":
         st.markdown("""
         <div class="selection-card">
             <div class="card-icon">🥗</div>
-            <div class="card-title">Create New<br>Diet Plan</div>
+            <div class="card-title">Diet<br>Plan</div>
             <div class="card-desc">
-                Get a customized meal plan tailored to your nutritional needs, dietary preferences, and calorie targets.
+                Get a customized meal plan tailored to your nutritional needs.
             </div>
         </div>
         """, unsafe_allow_html=True)
-        if st.button("CREATE DIET PLAN", key="btn_diet_plan", type="primary", use_container_width=True):
+        if st.button("CREATE DIET", key="btn_diet_plan", type="primary", use_container_width=True):
             st.session_state.page = "diet"
+            st.rerun()
+            
+    # --- MENTAL HEALTH CARD ---
+    with c3:
+        st.markdown("""
+        <div class="selection-card">
+            <div class="card-icon">🧠</div>
+            <div class="card-title">Mental<br>Wellness</div>
+            <div class="card-desc">
+                Track mood, manage stress, and find clarity with guided tools.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("OPEN MIND SPACE", key="btn_mental_plan", type="primary", use_container_width=True):
+            st.session_state.page = "mental"
             st.rerun()
 
 # ======================================================
@@ -636,6 +650,12 @@ elif st.session_state.page == "diet":
                 st.success("Diet plan saved successfully!")
         else:
             st.warning("Sign in to save this plan.")
+
+# ======================================================
+# MENTAL HEALTH PAGE (NEW)
+# ======================================================
+elif st.session_state.page == "mental":
+    render_mental_health_page()
 
 # ======================================================
 # ABOUT PAGE

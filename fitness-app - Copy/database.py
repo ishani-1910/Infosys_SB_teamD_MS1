@@ -37,6 +37,20 @@ def init_db():
         )
     ''')
 
+    # 3. MENTAL HEALTH LOGS (NEW)
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS mental_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT,
+            mood_score INTEGER,
+            mood_label TEXT,
+            stress_factors TEXT,
+            notes TEXT,
+            date TEXT,
+            FOREIGN KEY(username) REFERENCES users(username)
+        )
+    ''')
+
     conn.commit()
     conn.close()
 
@@ -103,7 +117,6 @@ def get_user_plans(username):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     
-    # UPDATED: We now select 'id' as well so we can delete specific plans
     c.execute('SELECT id, plan_data, created_at FROM saved_plans WHERE username = ? ORDER BY created_at DESC', 
               (username,))
     
@@ -113,7 +126,7 @@ def get_user_plans(username):
     results = []
     for row in rows:
         results.append({
-            "id": row[0],         # Capture the ID
+            "id": row[0],
             "plan": json.loads(row[1]),
             "created_at": row[2]
         })
@@ -121,16 +134,53 @@ def get_user_plans(username):
     return results
 
 def delete_plan(plan_id):
-    """
-    Deletes a specific plan by ID.
-    """
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute('DELETE FROM saved_plans WHERE id = ?', (plan_id,))
+    conn.commit()
+    conn.close()
+
+# ---------------------------------------------------------
+# MENTAL HEALTH FUNCTIONS (NEW)
+# ---------------------------------------------------------
+
+def log_mood(username, mood_score, mood_label, stress_factors, notes):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     
-    c.execute('DELETE FROM saved_plans WHERE id = ?', (plan_id,))
+    # Store date as YYYY-MM-DD for simple daily uniqueness
+    date_str = datetime.now().strftime("%Y-%m-%d")
+    
+    # Check if a log already exists for this user today
+    c.execute("SELECT id FROM mental_logs WHERE username = ? AND date = ?", (username, date_str))
+    exists = c.fetchone()
+    
+    # Convert list of factors to comma-separated string
+    factors_str = ",".join(stress_factors) if isinstance(stress_factors, list) else stress_factors
+
+    if exists:
+        # Update existing log
+        c.execute('''UPDATE mental_logs 
+                     SET mood_score=?, mood_label=?, stress_factors=?, notes=? 
+                     WHERE id=?''', 
+                  (mood_score, mood_label, factors_str, notes, exists[0]))
+    else:
+        # Insert new log
+        c.execute('''INSERT INTO mental_logs (username, mood_score, mood_label, stress_factors, notes, date) 
+                     VALUES (?, ?, ?, ?, ?, ?)''', 
+                  (username, mood_score, mood_label, factors_str, notes, date_str))
     
     conn.commit()
     conn.close()
+
+def get_mood_history(username):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    # Get last 7 entries for the chart
+    c.execute("SELECT date, mood_score FROM mental_logs WHERE username = ? ORDER BY date ASC LIMIT 7", (username,))
+    data = c.fetchall()
+    conn.close()
+    return data
 
 if __name__ == "__main__":
     init_db()
